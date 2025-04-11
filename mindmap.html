@@ -90,7 +90,7 @@
 
       function generateUserCard() {
         const content =
-          document.getElementById("contentInput").value || "내용 없음";
+          document.getElementById("contentInput").value || "default";
         let randID = generateCard(content);
 
         Keyword[randID] = {
