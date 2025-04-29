@@ -14,6 +14,9 @@
         cursor: move;
         z-index: 100;
       }
+      .TextCard.selected {
+        border: 3px solid red;
+      }
       .text-card p {
         margin: 0;
         font-size: 20px;
@@ -50,7 +53,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js"></script>
   </head>
   <body>
-    <h1>Mindmap Viewer/Generator</h1>
+    <h1>Mindmap Generator</h1>
 
     <textarea
       id="contentInput"
@@ -62,6 +65,7 @@
 
     <button onclick="generateUserCard()">generate user card</button>
     <button onclick="__test()">for test</button>
+    <button onclick="deleteCard()">delete card</button>
     <br /><br />
 
     <div id="mindmapContainer"></div>
@@ -81,6 +85,8 @@
       const cy = 400; // 루트 노드의 y좌표(top)
       const spaceX = 280; // 계층 간 간격
       const spaceY = 240; // 노드 간 간격
+
+      let selectedCard = null; // 현재 선택 중(빨간 테두리 상태)인 카드
 
       function __test() {
         nodes.forEach((j, i) => {
@@ -147,15 +153,62 @@
         return uniqueId;
       }
 
+      function deleteCard() {
+        if (!selectedCard) {
+          alert("no card selected!");
+          return;
+        }
+
+        const cardId = selectedCard.id;
+
+        // 삭제 대상 카드와 연결된 모든 연결선 제거
+        cards.forEach((c) => {
+          c.lines = c.lines.filter((line) => {
+            const startId = line.start.dataset.cardId;
+            const endId = line.end.dataset.cardId;
+
+            if (startId === cardId || endId === cardId) {
+              line.remove(); // 연결선 인스턴스 제거
+              return false;
+            }
+            return true;
+          });
+        });
+
+        selectedCard.remove();
+
+        // cards 배열, Keyword 배열, nodes 배열열에서 카드 제거
+        const idx = cards.findIndex((c) => c.id === cardId);
+        if (idx !== -1) cards.splice(idx, 1);
+
+        delete Keyword[cardId];
+
+        const nodeIdx = nodes.findIndex((n) => n.id === cardId);
+        if (nodeIdx !== -1) nodes.splice(nodeIdx, 1);
+
+        Object.values(Keyword).forEach((k) => {
+          k.children = k.children.filter((child) => child.id !== cardId);
+        });
+
+        selectedCard = null;
+      }
+
       // 카드 클릭시 실행
       function makeDraggable(card) {
         card.onmousedown = function (event) {
           nowDragging = card;
-          //console.log("dragged:", card);
           moveX = event.clientX - parseInt(card.style.left);
           moveY = event.clientY - parseInt(card.style.top);
           document.onmousemove = dragCard;
           document.onmouseup = stopDragging;
+
+          if (selectedCard) {
+            selectedCard.classList.remove("selected");
+            selectedCard = null;
+          } else {
+            selectedCard = card;
+            selectedCard.classList.add("selected");
+          }
         };
       }
 
@@ -197,6 +250,14 @@
             } else {
               const startAnchor = window.connectingAnchor;
               const endAnchor = anchor;
+
+              // 중복 연결 방지
+              if (startAnchor === endAnchor) {
+                startAnchor.style.background = "black";
+                window.connectingAnchor = null;
+                return;
+              }
+
               const line = new LeaderLine(startAnchor, endAnchor, {
                 color: "#000",
                 size: 2,

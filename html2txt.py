@@ -9,11 +9,11 @@ def sep_no(s):
     if s[0] in ['I', 'V', 'X']:
         tnum, txt = '', ''
         dot_idx = -1
-        if '.' in s: # I.
+        if '.' in s: # I.A or I.1
             dot_idx = s.find('.')
             tnum += s[:dot_idx+2]
             txt = s[dot_idx+2:]
-        elif '-' in s: # I-
+        elif '-' in s: # I-A or I-1
             dot_idx = s.find('-')
             tnum += s[:dot_idx+2]
             txt = s[dot_idx+2:]
@@ -116,13 +116,13 @@ def extract(url):
 
 
 
-url = "https://arxiv.org/html/2504.07495v1"
+url = ""
 
 # execute
 sections = extract(url)
 
 for sec in sections:
     print(sec['title'])
-    #print("\n".join(sec['paragraphs']))
-    #print("\n")
+    print('\n'.join(sec['paragraphs']))
+    print()
 
