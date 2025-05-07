@@ -1,3 +1,4 @@
+import sys
 import requests
 from bs4 import BeautifulSoup
 import re
@@ -76,6 +77,10 @@ def sep_no(s):
 
 
 def extract(url):
+    if len(url) < 1:
+        print('error: invalid url', file=sys.stderr)
+        return
+
     resp = requests.get(url)
     resp.raise_for_status()
 
@@ -123,11 +128,12 @@ url = ""
 # execute
 sections = extract(url)
 
-for sec in sections:
-    if sec['title'][1] != 'References':
-        print(sec['title'])
-        print('\n'.join(sec['paragraphs']))
-    print()
+if sections:
+    for sec in sections:
+        if sec['title'][1] != 'References':
+            print(sec['title'])
+            print('\n'.join(sec['paragraphs']))
+        print()
 
 
 
