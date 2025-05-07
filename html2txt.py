@@ -5,7 +5,6 @@ import re
 
 
 def sep_no(s):
-    #print(s)
     if s[0] in ['I', 'V', 'X']:
         tnum, txt = '', ''
         dot_idx = -1
@@ -57,19 +56,24 @@ def sep_no(s):
 
         seperated = (tnum, txt)
         return seperated
-
-    else:
-        rematch = re.match(r'^((?:IV|IX|V?I{0,3})(?:\.\d+)?|\d+(?:\.\d+)?)([A-Z].+)$', s)
-        if rematch:
-            tnum, txt = rematch.groups()
-        else:
-            tnum, txt = re.sub(r'(\d)([A-Za-z])', r'\1. \2', s)
+    
+    elif s[0].isdigit():
+        dot_idx = 0
+        for i in s:
+            if i.isalpha():
+                break
+            dot_idx += 1
         
-        if tnum == '':
-            tnum = '0'
-        
+        tnum, txt = s[:dot_idx], s[dot_idx:]
         seperated = (tnum, txt)
         return seperated
+    
+    else: # maybe references section
+        tnum, txt = '0', s
+        seperated = (tnum, txt)
+        return seperated
+
+
 
 def extract(url):
     resp = requests.get(url)
@@ -82,13 +86,11 @@ def extract(url):
 
     for element in soup.find_all(['h1', 'h2', 'h3', 'h6', 'p']):
         if element.name == 'h6': # abstract
-            title_text = element.get_text(strip=True)
-            title_text = sep_no(title_text)
+            title_text = ('0', element.get_text(strip=True))
             now = {
                 'title': title_text,
                 'paragraphs': []
             }
-            #print(title_text)
 
         elif element.name in ['h1', 'h2', 'h3', 'h6']: # title number + title name
             if now['paragraphs']:
@@ -122,7 +124,26 @@ url = ""
 sections = extract(url)
 
 for sec in sections:
-    print(sec['title'])
-    print('\n'.join(sec['paragraphs']))
+    if sec['title'][1] != 'References':
+        print(sec['title'])
+        print('\n'.join(sec['paragraphs']))
     print()
 
+
+
+"""
+
+sections =
+[
+    {
+        'title' = (index, title) -> tuple,
+        'paragraph' = [context1, context2, ... , context9] -> list
+    } -> dict
+    ...
+    {
+        'title' = (index, title),
+        'paragraph' = [context1, context2, ... , context9]
+    }
+] -> list
+
+"""
