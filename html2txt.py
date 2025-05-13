@@ -125,17 +125,29 @@ def extract(url):
 
 url = ""
 
-# execute
+"""
 sections = extract(url)
 
 if sections:
     for sec in sections:
         if sec['title'][1] != 'References':
-            print(sec['title'])
+            print(*sec['title'])
             print('\n'.join(sec['paragraphs']))
         print()
+"""
 
-
+# execute
+def main(url):
+    sections = extract(url)
+    fout = open(f'extracted_{url[-10:]}.txt', 'w', encoding='UTF-8')
+    if sections:
+        for sec in sections:
+            if sec['title'][1] != 'References':
+                fout.write(sec['title'][0] + ' ' + sec['title'][1] + '\n')
+                for i in sec['paragraphs']:
+                    fout.write(i + '\n')
+            fout.write('\n')
+    fout.close()
 
 """
 
@@ -153,3 +165,5 @@ sections =
 ] -> list
 
 """
+
+main(url)

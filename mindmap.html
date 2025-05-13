@@ -50,29 +50,61 @@
         transform: translateY(-50%);
       }
     </style>
+    <link rel="stylesheet" href="https://pyscript.net/latest/pyscript.css" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js"></script>
+    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
   </head>
   <body>
-    <h1>Mindmap Generator</h1>
+    <div class="mindmap-root">
+      <div class="input-panel">
+        <h1>Mindmap Generator</h1>
+        <form
+          id="arxiv-form"
+          action="/process"
+          method="post"
+          autocomplete="off"
+        >
+          <div class="arxiv-row">
+            <label for="arxiv-url">arXiv URL:</label>
+            <input
+              type="text"
+              id="arxiv-url"
+              name="arxiv-url"
+              placeholder="https://arxiv.org/abs/XXXX.XXXXX"
+              size="30"
+            />
+            <button type="button" onclick="submitArxivUrl()">Submit</button>
+          </div>
+          <br />
 
-    <textarea
-      id="contentInput"
-      placeholder="input content here:"
-      rows="4"
-      cols="50"
-    ></textarea
-    ><br /><br />
+          <label for="fileInput">마크다운 파일 추가:</label>
+          <input type="file" name="browse" id="fileInput" accept=".md" />
+          <button type="button" onclick="loadMD()">show</button>
 
-    <button onclick="generateUserCard()">generate user card</button>
-    <button onclick="__test()">for test</button>
-    <button onclick="deleteCard()">delete card</button>
-    <button onclick="deleteAll()">delete all</button>
-    <br /><br />
+          <br /><br />
 
-    <div id="mindmapContainer"></div>
+          <label for="contentInput">노드 추가하기:</label>
+          <textarea
+            id="contentInput"
+            placeholder="input content here:"
+            rows="1"
+            cols="30"
+          ></textarea>
+          <br /><br />
 
-    <input type="file" name="browse" id="fileInput" accept=".md" />
-    <button onclick="loadMD()">show</button>
+          <button type="button" onclick="generateUserCard()">
+            generate user card
+          </button>
+          <button type="button" onclick="__test()">for test</button>
+          <button type="button" onclick="deleteCard()">delete card</button>
+          <button type="button" onclick="deleteAll()">delete all</button>
+        </form>
+      </div>
+
+      <div id="mindmapContainer"></div>
+    </div>
+
+    <py-script> </py-script>
 
     <script>
       let cards = []; // 모든 카드 정보가 저장되는 배열
@@ -93,6 +125,11 @@
         nodes.forEach((j, i) => {
           console.log(i, j);
         });
+      }
+
+      function submitArxivUrl() {
+        const url = document.getElementById("arxiv-url");
+        console.log(url);
       }
 
       function generateUserCard() {
