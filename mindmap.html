@@ -1,30 +1,32 @@
 <!DOCTYPE html>
-<html lang="ko">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Mindmap Generator</title>
+    <title>Mind Map Viewer</title>
     <style>
       .TextCard {
         position: absolute; /* 위치 변경이 가능하도록 설정 */
-        border: 1px solid rgb(0, 0, 0);
-        padding: 10px;
+        background-color: white;
+        padding: 14px;
+        border-radius: 12px;
+        border: 2px solid #ddd;
+        box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
         background: #fff;
-        width: 350px;
+        width: 240px;
         height: auto;
         cursor: move;
         z-index: 100;
-      }
-      .TextCard.selected {
-        border: 3px solid red;
+        transition: transform 0.2s, box-shadow 0.2s;
+        word-break: break-all;
       }
       .text-card p {
         margin: 0;
-        font-size: 20px;
+        font-size: 14px;
       }
       .anchor {
         position: absolute;
-        width: 10px;
-        height: 10px;
+        width: 5px;
+        height: 5px;
         background: black;
         border-radius: 50%;
         z-index: 200;
@@ -33,6 +35,11 @@
         top: -5px;
         left: 50%;
         transform: translateX(-50%);
+      }
+      .left {
+        left: -5px;
+        top: 50%;
+        transform: translateY(-50%);
       }
       .right {
         right: -5px;
@@ -44,226 +51,48 @@
         left: 50%;
         transform: translateX(-50%);
       }
-      .left {
-        left: -5px;
-        top: 50%;
-        transform: translateY(-50%);
+      .card-level-1 {
+        background-color: #ffeead;
+      }
+      .card-level-2 {
+        background-color: #c4f0c5;
+      }
+      .card-level-3 {
+        background-color: #a0e7e5;
+      }
+      .card-level-4 {
+        background-color: #b4a7d6;
+      }
+      .card-level-5 {
+        background-color: #ffd6e0;
       }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.3/leader-line.min.js"></script>
-    <script defer src="https://pyscript.net/alpha/pyscript.js"></script>
+    <link rel="shortcut icon" href="#" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leader-line/1.0.7/leader-line.min.js"></script>
   </head>
   <body>
-    <div class="mindmap-root">
-      <div class="input-panel">
-        <h1>Mindmap Generator</h1>
-        <form
-          id="arxiv-form"
-          action="/process"
-          method="post"
-          autocomplete="off"
-        >
-          <div class="arxiv-row">
-            <label for="arxiv-url">arXiv URL:</label>
-            <input
-              type="text"
-              id="arxiv-url"
-              name="arxiv-url"
-              placeholder="https://arxiv.org/abs/XXXX.XXXXX"
-              size="30"
-            />
-            <button type="button" onclick="submitArxivUrl()">Submit</button>
-          </div>
-          <br />
-
-          <label for="fileInput">마크다운 파일 추가:</label>
-          <input type="file" name="browse" id="fileInput" accept=".md" />
-          <button type="button" onclick="loadMD()">show</button>
-
-          <br /><br />
-
-          <label for="contentInput">노드 추가하기:</label>
-          <textarea
-            id="contentInput"
-            placeholder="input content here:"
-            rows="1"
-            cols="30"
-          ></textarea>
-          <br /><br />
-
-          <button type="button" onclick="generateUserCard()">
-            generate user card
-          </button>
-          <button type="button" onclick="__test()">for test</button>
-          <button type="button" onclick="deleteCard()">delete card</button>
-          <button type="button" onclick="deleteAll()">delete all</button>
-        </form>
-      </div>
-
-      <div id="mindmapContainer"></div>
+    <div id="mindmapContainer">
+      <h1>Mindmap Generator</h1>
+      <label for="fileInput">file: </label>
+      <input type="file" name="browse" id="fileInput" accept=".md" />
+      <button type="button" onclick="loadMD()">show</button>
     </div>
-
-    <py-script> </py-script>
-
     <script>
       let cards = []; // 모든 카드 정보가 저장되는 배열
       let nowDragging = null;
       let moveX, moveY;
 
       const nodes = []; // 노드 정보가 저장되는 배열
+      const leafs = [];
       const Keyword = {}; // 노드 오브젝트 --- 고유 ID로 접근
       let leafCnt = 0; // 리프 노드 개수
-      const cx = 100; // 루트 노드의 x좌표(left)
-      const cy = 400; // 루트 노드의 y좌표(top)
-      const spaceX = 720; // 계층 간 간격
-      const spaceY = 280; // 노드 간 간격
+      const cx = 20; // 루트 노드의 x좌표(left)
+      const cy = 180; // 루트 노드의 y좌표(top)
+      const spaceX = 360; // 계층 간 간격
+      const spaceY = 220; // 리프 노드 간 간격(default)
+      const spanY = 180; // 리프 노드 간 최소 간격
 
       let selectedCard = null; // 현재 선택 중(빨간 테두리 상태)인 카드
-
-      function __test() {
-        nodes.forEach((j, i) => {
-          console.log(i, j);
-        });
-      }
-
-      function submitArxivUrl() {
-        const url = document.getElementById("arxiv-url");
-        console.log(url);
-      }
-
-      function generateUserCard() {
-        const content =
-          document.getElementById("contentInput").value || "default";
-        let randID = generateCard(content);
-
-        Keyword[randID] = {
-          id: randID,
-          txt: content,
-          level: -1,
-          posX: 300,
-          posY: 300,
-          parent: null,
-          children: [],
-          isRoot: 0,
-          isLeaf: 0,
-          leafNo: 0,
-        };
-
-        let node = document.getElementById(randID);
-        let nodeInfo = Keyword[randID];
-
-        node.style.left = `${nodeInfo.posX}px`;
-        node.style.top = `${nodeInfo.posY}px`;
-
-        nodes.push(Keyword[randID]);
-        updateLines(Keyword[randID]);
-      }
-
-      function generateCard(content) {
-        const uniqueId = "t" + Date.now() + Math.floor(Math.random() * 1000);
-
-        const textCardHTML = `
-        <div id="${uniqueId}" class="card-item TextCard">
-          <div class="anchor top" data-socket="top" data-card-id="${uniqueId}"></div>
-          <div class="anchor right" data-socket="right" data-card-id="${uniqueId}"></div>
-          <div class="anchor bottom" data-socket="bottom" data-card-id="${uniqueId}"></div>
-          <div class="anchor left" data-socket="left" data-card-id="${uniqueId}"></div>
-          <div class="text-card">
-            <div class="custom-editor">
-              <div class="real-editor">
-                <p>${content}</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      `;
-
-        document
-          .getElementById("mindmapContainer")
-          .insertAdjacentHTML("beforeend", textCardHTML);
-        const newCard = document.getElementById(uniqueId);
-        makeDraggable(newCard);
-
-        cards.push({ id: uniqueId, element: newCard, lines: [] });
-        addLine(newCard);
-
-        return uniqueId;
-      }
-
-      function deleteCard() {
-        if (!selectedCard) {
-          alert("no card selected!");
-          return;
-        }
-
-        // 삭제 확인 메시지
-        var chk = confirm(
-          "Are you sure you want to delete this card?\nThis action cannot be undone."
-        );
-
-        if (chk) {
-          const cardId = selectedCard.id;
-
-          // 삭제 대상 카드와 연결된 모든 연결선 제거
-          cards.forEach((c) => {
-            c.lines = c.lines.filter((line) => {
-              const startId = line.start.dataset.cardId;
-              const endId = line.end.dataset.cardId;
-
-              if (startId === cardId || endId === cardId) {
-                line.remove(); // 연결선 인스턴스 제거
-                return false;
-              }
-              return true;
-            });
-          });
-
-          selectedCard.remove();
-
-          // cards 배열, Keyword 배열, nodes 배열열에서 카드 제거
-          const idx = cards.findIndex((c) => c.id === cardId);
-          if (idx !== -1) cards.splice(idx, 1);
-
-          delete Keyword[cardId];
-
-          const nodeIdx = nodes.findIndex((n) => n.id === cardId);
-          if (nodeIdx !== -1) nodes.splice(nodeIdx, 1);
-
-          Object.values(Keyword).forEach((k) => {
-            k.children = k.children.filter((child) => child.id !== cardId);
-          });
-
-          selectedCard = null;
-        }
-      }
-
-      function deleteAll() {
-        // 삭제 확인 메시지
-        var chk = confirm(
-          "Are you sure you want to delete all card?\nThis action cannot be undone."
-        );
-
-        // 모든 연결선 제거
-        if (chk) {
-          cards.forEach((c) => {
-            if (c.lines && c.lines.length > 0) {
-              c.lines.forEach((line) => {
-                line.remove();
-              });
-            }
-          });
-
-          // 모든 카드 DOM 요소 제거
-          document.querySelectorAll(".TextCard").forEach((el) => el.remove());
-
-          // 모든 변수/배열 초기화
-          cards = [];
-          for (let key in Keyword) delete Keyword[key];
-          nodes.length = 0;
-          leafCnt = 0;
-          selectedCardId = null;
-        }
-      }
 
       // 카드 클릭시 실행
       function makeDraggable(card) {
@@ -275,11 +104,9 @@
           document.onmouseup = stopDragging;
 
           if (selectedCard) {
-            selectedCard.classList.remove("selected");
             selectedCard = null;
           } else {
             selectedCard = card;
-            selectedCard.classList.add("selected");
           }
         };
       }
@@ -310,44 +137,6 @@
         });
       }
 
-      // 앵커 클릭 시 연결
-      function addLine(card) {
-        const anchors = card.querySelectorAll(".anchor");
-
-        anchors.forEach((anchor) => {
-          anchor.onclick = function () {
-            if (!window.connectingAnchor) {
-              window.connectingAnchor = anchor;
-              anchor.style.background = "green"; // 연결 대기 중 색깔
-            } else {
-              const startAnchor = window.connectingAnchor;
-              const endAnchor = anchor;
-
-              // 중복 연결 방지
-              if (startAnchor === endAnchor) {
-                startAnchor.style.background = "black";
-                window.connectingAnchor = null;
-                return;
-              }
-
-              const line = new LeaderLine(startAnchor, endAnchor, {
-                color: "#000",
-                size: 2,
-                path: "magnet",
-              });
-
-              const startCard = cards.find(
-                (c) => c.id === startAnchor.dataset.cardId
-              );
-              startCard.lines.push(line);
-
-              startAnchor.style.background = "black";
-              window.connectingAnchor = null;
-            }
-          };
-        });
-      }
-
       // 파일 탐색기 열어 md 파일 read
       function loadMD() {
         const fileInput = document.getElementById("fileInput");
@@ -361,195 +150,215 @@
         const reader = new FileReader();
         reader.onload = function (event) {
           const text = event.target.result;
-          parsingMD(text);
+          drawMap(text);
         };
         reader.readAsText(file);
       }
 
+      function deleteAll() {
+        cards.forEach((c) => {
+          if (c.lines && c.lines.length > 0) {
+            c.lines.forEach((line) => {
+              line.remove();
+            });
+          }
+        });
+
+        // 모든 카드 DOM 요소 제거
+        document.querySelectorAll(".TextCard").forEach((el) => el.remove());
+
+        // 모든 변수/배열 초기화
+        cards = [];
+        for (let key in Keyword) delete Keyword[key];
+        nodes.length = 0;
+        leafs.length = 0;
+        leafCnt = 0;
+        selectedCardId = null;
+      }
+
       // md 파일 파싱
-      function parsingMD(fname) {
+      function drawMap(fname) {
+        deleteAll();
+
+        const container = document.getElementById("mindmapContainer");
         const extracted = fname.split("\n");
 
-        let rootID = -1;
-        let layer2ID = -1;
-        let layer3ID = -1;
-        let layer4ID = -1;
+        // 가장 가까운 부모 노드의 id(임시 저장됨)
+        let rootID = -1,
+          layer2ID = -1,
+          layer3ID = -1,
+          layer4ID = -1;
 
         extracted.forEach((line) => {
           if (!line.trim()) return;
-
           let content = line.trim();
-          let cardId = null;
+          let level = (line.match(/^#+/) || [""])[0].length; // # 기호의 개수
+          content = content.replace(/^#+/, "").trim(); // #를 제거하고, 제목만 저장
 
-          if (content.startsWith("#####")) {
-            // 소주제 설명
-            content = content.replace(/^#+/, "").trim();
-            cardId = generateCard(content);
-            Keyword[cardId] = {
-              id: cardId,
-              txt: content,
-              level: 5,
-              posX: cx + spaceX * 4,
-              posY: 0,
-              parent: layer4ID,
-              children: [],
-              isRoot: 0,
-              isLeaf: 1,
-              leafNo: 0,
-            };
+          /*
+          const node = {
+            id: 노드의 고유 번호(랜덤으로 설정),
+            txt: 텍스트 내용,
+            level: 트리 상에서의 노드 레벨,
+            posX: x좌표(style-left, px),
+            posY: y좌표(style-top, px),
+            parent: 부모 노드,
+            children: 자식 노드(배열),
+            isRoot: 루트 노드일 경우 1,
+            isLeaf: 리프 노드일 경우 1,
+            leafNo: 루프 노드가 등장한 순서대로 설정되는 번호,
+          };
+          */
+          const cardId = "t" + Math.floor(Math.random() * 1000000);
+          const node = {
+            id: cardId,
+            txt: content,
+            level: level,
+            posX: cx + (level - 1) * spaceX,
+            posY: 0,
+            parent: null,
+            children: [],
+            isRoot: level === 1 ? 1 : 0,
+            isLeaf: 1,
+            leafNo: 0,
+            isFirstChild: false,
+          };
 
-            if (layer4ID != -1) {
-              Keyword[layer4ID].children.push(Keyword[cardId]);
-              Keyword[layer4ID].isLeaf = 0;
-            }
-
-            nodes.push(Keyword[cardId]);
-          } else if (content.startsWith("####")) {
-            // 소주제
-            content = content.replace(/^#+/, "").trim();
-            cardId = generateCard(content);
-            Keyword[cardId] = {
-              id: cardId,
-              txt: content,
-              level: 4,
-              posX: cx + spaceX * 3,
-              posY: 0,
-              parent: layer3ID,
-              children: [],
-              isRoot: 0,
-              isLeaf: 1,
-              leafNo: 0,
-            };
-
-            if (layer3ID != -1) {
-              Keyword[layer3ID].children.push(Keyword[cardId]);
-              Keyword[layer3ID].isLeaf = 0;
-            }
-            nodes.push(Keyword[cardId]);
-            layer4ID = cardId;
-          } else if (content.startsWith("###")) {
-            // 대주제 내용
-            content = content.replace(/^#+/, "").trim();
-            cardId = generateCard(content);
-            Keyword[cardId] = {
-              id: cardId,
-              txt: content,
-              level: 3,
-              posX: cx + spaceX * 2,
-              posY: 0,
-              parent: layer2ID,
-              children: [],
-              isRoot: 0,
-              isLeaf: 1,
-              leafNo: 0,
-            };
-
-            if (layer2ID != -1) {
-              Keyword[layer2ID].children.push(Keyword[cardId]);
-              Keyword[layer2ID].isLeaf = 0;
-            }
-            nodes.push(Keyword[cardId]);
-            layer3ID = cardId;
-          } else if (content.startsWith("##")) {
-            // 대주제
-            content = content.replace(/^#+/, "").trim();
-            cardId = generateCard(content);
-            Keyword[cardId] = {
-              id: cardId,
-              txt: content,
-              level: 2,
-              posX: cx + spaceX,
-              posY: 0,
-              parent: rootID,
-              children: [],
-              isRoot: 0,
-              isLeaf: 1,
-              leafNo: 0,
-            };
-
-            if (rootID != -1) {
-              Keyword[rootID].children.push(Keyword[cardId]);
-              Keyword[rootID].isLeaf = 0;
-            }
-            nodes.push(Keyword[cardId]);
-            layer2ID = cardId;
-          } else if (content.startsWith("#")) {
+          // level 2~5에서는, 자신의 부모 노드가 리프 노드가 아님을 설정해줘야 함
+          if (level === 1) {
             // 제목
-            content = content.replace(/^#+/, "").trim();
-            cardId = generateCard(content);
-            Keyword[cardId] = {
-              id: cardId,
-              txt: content,
-              level: 1,
-              posX: cx,
-              posY: cy,
-              parent: -1,
-              children: [],
-              isRoot: 1,
-              isLeaf: 1,
-              leafNo: 0,
-            };
-
-            nodes.push(Keyword[cardId]);
             rootID = cardId;
+          } else if (level === 2) {
+            // 대주제
+            node.parent = rootID;
+            const parent = Keyword[rootID];
+            node.isFirstChild = parent.children.length === 0;
+            parent.children.push(node);
+            parent.isLeaf = 0;
+            layer2ID = cardId;
+          } else if (level === 3) {
+            // 대주제 설명
+            node.parent = layer2ID;
+            const parent = Keyword[layer2ID];
+            node.isFirstChild = parent.children.length === 0;
+            parent.children.push(node);
+            parent.isLeaf = 0;
+            layer3ID = cardId;
+          } else if (level === 4) {
+            // 소주제
+            node.parent = layer3ID;
+            const parent = Keyword[layer3ID];
+            node.isFirstChild = parent.children.length === 0;
+            parent.children.push(node);
+            parent.isLeaf = 0;
+            layer4ID = cardId;
+          } else if (level === 5) {
+            // 소주제 설명
+            node.parent = layer4ID;
+            const parent = Keyword[layer4ID];
+            node.isFirstChild = parent.children.length === 0;
+            parent.children.push(node);
+            parent.isLeaf = 0;
           }
+
+          Keyword[cardId] = node;
+          nodes.push(node);
         });
 
-        cards.forEach((i) => {
-          if (Keyword[i.id].isLeaf) {
-            Keyword[i.id].leafNo = leafCnt++;
-          }
+        // 리프 노드들에 순서 번호 부여(y좌표 설정을 위한 과정)
+        nodes.forEach((i) => {
+          if (i.isLeaf) i.leafNo = leafCnt++;
         });
+
+        // 노드 정보를 post-order 방식으로 순회, 자식 노드에서 부모 노드로의 연결선 생성
+        // 이 과정에서, 모든 노드들의 y좌표가 결정됨. 리프 노드 간 간격은 spaceY
+        function show(nodes) {
+          nodes.forEach((now) => {
+            let nodeID = document.getElementById(now.id);
+            let nodeInfo = Keyword[now.id];
+
+            now.children.forEach((chd, i) => {
+              show([chd]); // 자식 노드들을 먼저 방문
+
+              let childID = document.getElementById(chd.id);
+              let childInfo = Keyword[chd.id];
+
+              // 리프 노드들이 spaceY 간격을 유지하도록 배치
+              if (childInfo.isLeaf) {
+                childInfo.posY = cy + childInfo.leafNo * spaceY;
+              }
+
+              // 첫 번째 자식 노드와 부모 노드의 y좌표를 동일하게 맞춰줌
+              if (i === 0 && nodeInfo.isLeaf != 1) {
+                now.posY = childInfo.posY;
+              }
+            });
+          });
+        }
 
         show([Keyword[rootID]]);
 
-        updateLines(cards[0]);
-      }
+        // 카드에 해당하는 html 코드를 mindmapContainer에 추가
+        setTimeout(function () {
+          nodes.forEach((i) => {
+            const textCardHTML = `
+              <div id="${i.id}" class="card-item TextCard card-level-${i.level}" style="left: ${i.posX}px ;top: ${i.posY}px">
+                <div class="anchor top" data-socket="top" data-card-id="${i.id}"></div>
+                <div class="anchor right" data-socket="right" data-card-id="${i.id}"></div>
+                <div class="anchor bottom" data-socket="bottom" data-card-id="${i.id}"></div>
+                <div class="anchor left" data-socket="left" data-card-id="${i.id}"></div>
+                <div class="text-card">
+                  <div class="custom-editor">
+                    <div class="real-editor">
+                      <p>${i.txt}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            `;
 
-      // 노드 정보를 post-order 방식으로 순회, 자식 노드에서 부모 노드로의 연결선 생성
-      function show(nodes) {
-        nodes.forEach((now) => {
-          let nodeID = document.getElementById(now.id);
-          let nodeInfo = Keyword[now.id];
+            document
+              .getElementById("mindmapContainer")
+              .insertAdjacentHTML("beforeend", textCardHTML);
 
-          // 루트 노드는 따로 처리
-          if (nodeInfo.isRoot === 1) {
-            nodeID.style.left = `${nodeInfo.posX}px`;
-            nodeID.style.top = `${nodeInfo.posY}px`;
-          }
+            requestAnimationFrame(() => {
+              const newCard = document.getElementById(i.id);
+              makeDraggable(newCard);
 
-          now.children.forEach((chd, i) => {
-            show([chd]); // 자식 노드들을 먼저 방문
-
-            let childID = document.getElementById(chd.id);
-            let childInfo = Keyword[chd.id];
-
-            // 리프 노드들이 spaceY 간격을 유지하도록 배치
-            if (childInfo.isLeaf) {
-              childInfo.posY = cy + childInfo.leafNo * spaceY;
-            }
-
-            // 자식 노드의 좌표 지정
-            childID.style.left = `${childInfo.posX}px`;
-            childID.style.top = `${childInfo.posY}px`;
-
-            // 첫 번째 자식 노드와 부모 노드의 y좌표를 동일하게 맞춰줌
-            if (i === 0 && nodeInfo.isLeaf != 1) {
-              now.posY = childInfo.posY;
-            }
-
-            // 자식 노드로에서 부모 노드로 이어지는 연결선 생성
-            let line = new LeaderLine(
-              nodeID.querySelector(i == 0 ? ".right" : ".bottom"),
-              document.getElementById(chd.id).querySelector(".left"),
-              { color: "#000", size: 2, path: "magnet" }
-            );
-
-            // 연결선 배열에 정보 저장
-            let par = cards.find((c) => c.id === now.id);
-            par.lines.push(line);
+              cards.push({ id: i.id, element: newCard, lines: [] });
+            });
           });
-        });
+        }, 10);
+
+        // 연결선 생성 부모 노드 -> 자식 노드
+        setTimeout(function () {
+          nodes.forEach((node) => {
+            node.children.forEach((child, idx) => {
+              const parentEl = document.getElementById(node.id);
+              const childEl = document.getElementById(child.id);
+
+              // 연결선 설정(부모:right -> 자식:left)
+              requestAnimationFrame(() => {
+                const parentAnchor = parentEl.querySelector(".right");
+                const childAnchor = childEl.querySelector(".left");
+
+                const line = new LeaderLine(parentAnchor, childAnchor, {
+                  color: "#000",
+                  size: 2,
+                  path: "magnet",
+                });
+
+                // 연결선 정보 저장 (카드 움직일 때 업데이트 가능하도록)
+                const parentCard = cards.find((c) => c.id === node.id);
+                if (parentCard) {
+                  parentCard.lines.push(line);
+                }
+              });
+            });
+          });
+        }, 10);
+
+        updateLines(cards[0]);
       }
     </script>
   </body>

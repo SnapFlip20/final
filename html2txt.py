@@ -37,8 +37,8 @@ def sep_no(s):
         else:
             # I II III IV V VI VII VIII IX X XI XII XIII
             if s == 'Introduction' or s == 'INTRODUCTION':
-                tnum = ''
-                txt = s
+                tnum = s
+                txt = ''
             elif s.startswith('IIntro') or s.startswith('IINTRO'):
                 tnum += 'I'
                 txt = s[1:]
@@ -98,7 +98,12 @@ def sep_no(s):
         seperated = (tnum, txt)
         return seperated
     
-    else: # maybe references section
+    elif 'abstract' in s.lower():
+        tnum, txt = 'Abstract', ''
+        seperated = (tnum, txt)
+        return seperated
+    
+    else:
         tnum, txt = '', s
         seperated = (tnum, txt)
         return seperated
@@ -117,73 +122,73 @@ def extract(url):
     soup = BeautifulSoup(resp.text, 'html.parser')
     sections = []
 
-    now = {'title': ('', ''), 'paragraphs': []}
+    now = {'title': ('', ''), 'paragraphs': ['']}
+    h3_exception = False
 
     for element in soup.find_all(['h1', 'h2', 'h3', 'h6', 'p']):
-        if element.name == 'h6': # abstract
-            if now['paragraphs']:
-                sections.append(now)
+        txtline = element.get_text(strip=True)
 
-            title_text = element.get_text(strip=True)
-            now = {
-                'title': ('', title_text),
-                'paragraphs': []
-            }
-        
-        elif element.name == 'h1': # main title
-            title_text = element.get_text(strip=True)
-            now = {
-                'title': ('', 'Title'),
-                'paragraphs': [title_text]
-            }
+        if element.name in ['h1', 'h2', 'h3', 'h6']:
+            if 'reference' in txtline.lower():
+                break
 
-        elif element.name in ['h2', 'h3']: # title number + title name
-            if now['paragraphs']:
-                sections.append(now)
+            if element.name == 'h6': # abstract
+                if now['paragraphs'] and not h3_exception:
+                    sections.append(now)
 
-            title_text = element.get_text(strip=True)
-            title_text = sep_no(title_text)
-            now = {
-                'title': title_text,
-                'paragraphs': []
-            }
+                title_text = txtline
+                title_text = sep_no(title_text)
+
+                if title_text[0] == '':
+                    h3_exception = True
+                else:
+                    h3_exception = False
+            
+                now = {
+                    'title': title_text,
+                    'paragraphs': ['']
+                }
+            
+            elif element.name == 'h1': # main title
+                title_text = txtline
+                title = title_text
+                now = {
+                    'title': ('Title', title_text),
+                    'paragraphs': ['']
+                }
+
+            elif element.name in ['h2', 'h3']: # title number + title name
+                if now['paragraphs'] and not h3_exception:
+                    sections.append(now)
+
+                title_text = txtline
+                title_text = sep_no(title_text)
+                
+                if title_text[0] == '':
+                    h3_exception = True
+                else:
+                    h3_exception = False
+
+                now = {
+                    'title': title_text,
+                    'paragraphs': ['']
+                }
 
         elif element.name == 'p': # paragraph
-            paragraph = element.get_text(strip=True)
-            now['paragraphs'].append(paragraph)
+            paragraph = txtline
+            if not h3_exception and not h3_exception:
+                now['paragraphs'].append(paragraph)
+
+
 
     # add last section
-    if now['paragraphs']:
+    if now['paragraphs'] and not h3_exception:
         sections.append(now)
 
     return sections
 
-
-"""
-sections = extract(url)
-    fout = open(f'extracted_{url[-12:]}.txt', 'w', encoding='UTF-8')
-
-    fout.write(title + '\n\n') # title
-    if sections:
-        for sec in sections:
-            if sec['title'][1] == 'References':
-                continue
-
-            if sec['title'][0]:
-                fout.write(sec['title'][0] + ' ')
-            fout.write(sec['title'][1] + '\n')
-            for i in sec['paragraphs']:
-                fout.write(i + '\n')
-            fout.write('\n')
-    fout.close()
-"""
-
-
-
-# execute
 def main(url):
-    sections = extract(url)
-
+    sections = extract(arxiv_url)
     if sections:
         print()
         for sec in sections:
@@ -191,21 +196,18 @@ def main(url):
             if sec['title'][1] == 'References':
                 continue
 
-            # print title
-            if sec['title'][0]:
+            if sec['title'][0] == 'Title':
                 print(*sec['title'])
-                ...
             else:
-                print(sec['title'][1])
-                ...
-
-            # print paragraph        
-            print('\n'.join(sec['paragraphs']))
-            print()
-
+                if sec['title'][0]:
+                    print(*sec['title'])
+                else:
+                    print(sec['title'][1])
+                #print(*sec['paragraphs'])
 
 
-url = ""
+
+arxiv_url = ''
 
 if __name__ == "__main__":
-    main(url)
+    main(arxiv_url)
